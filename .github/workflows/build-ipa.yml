@@ -14,7 +14,7 @@ on:
       height_channels:
         description: Build with TrueHD Atmos and DTS:X height channels (may need patent licences; not for public releases)
         type: boolean
-        default: false
+        default: true
       runner:
         description: Runner image (xcode-27 has Xcode 27.1, for iPhone Duo's full inner display)
         type: choice
