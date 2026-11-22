@@ -110,4 +110,20 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/releases" --paginate > build/releases.json
           python3 scripts/altstore-source.py build/releases.json "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" \
             build/AIOStreams.ipa build/altstore.json
-          gh release upload "$GITHUB_REF_NAME" build/altstore.json --clobber
+          # The Apple TV app's, in the same format, for tvOS sideloaders (ATVLoadly, FlareStore).
+          python3 scripts/altstore-source.py build/releases.json "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" \
+            build/AIOStreams-tvOS.ipa build/altstore-tvos.json tvos
+          gh release upload "$GITHUB_REF_NAME" build/altstore.json build/altstore-tvos.json --clobber
+          # And on the altstore branch, whose raw address always holds the last complete source:
+          # releases/latest points at a new release before its build attaches the file above, and
+          # a source added meanwhile reads GitHub's error page ("not valid JSON").
+          if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/altstore" >/dev/null 2>&1; then
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref=refs/heads/altstore -f sha="$GITHUB_SHA" >/dev/null
+          fi
+          for file in altstore.json altstore-tvos.json; do
+            current=$(gh api "repos/$GITHUB_REPOSITORY/contents/$file?ref=altstore" --jq .sha 2>/dev/null || true)
+            gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$file" \
+              -f branch=altstore -f message="$file for $GITHUB_REF_NAME" \
+              -f content="$(base64 < "build/$file" | tr -d '\n')" \
+              ${current:+-f sha="$current"} >/dev/null
+          done
